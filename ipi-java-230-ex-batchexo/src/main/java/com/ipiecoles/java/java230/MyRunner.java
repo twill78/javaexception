@@ -1,7 +1,11 @@
 package com.ipiecoles.java.java230;
 
 import com.ipiecoles.java.java230.exceptions.BatchException;
+import com.ipiecoles.java.java230.exceptions.TechnicienException;
+import com.ipiecoles.java.java230.model.Commercial;
 import com.ipiecoles.java.java230.model.Employe;
+import com.ipiecoles.java.java230.model.Manager;
+import com.ipiecoles.java.java230.model.Technicien;
 import com.ipiecoles.java.java230.repository.EmployeRepository;
 import com.ipiecoles.java.java230.repository.ManagerRepository;
 
@@ -34,7 +38,7 @@ public class MyRunner implements CommandLineRunner {
     private static final String REGEX_MATRICULE_MANAGER = "^M[0-9]{5}$";
     private static final int NB_CHAMPS_COMMERCIAL = 7;
     
-	// Liste pour sauvegarder tous les matricules valides du fichier CSV
+	// Liste pour sauvegarder tous les matricules de managers valides du fichier CSV
 	private List<String> matsManager = new ArrayList<String>();
 
     @Autowired
@@ -76,16 +80,21 @@ public class MyRunner implements CommandLineRunner {
         	try {
         		processLine(ligne);
         	} catch (BatchException e) {
-        		System.out.println("Ligne " + i + " : " + e.getMessage() + "=>" + ligne);
+        		System.out.println("Ligne " + i + " : " + e.getMessage() + "=> " + ligne);
         	}
         	
-        	// Enregistre tous les matricules valides
+        	// Enregistre tous les matricules de managers valides
         	String[] tab2 = ligne.split(",");
-        	if(tab2[0].matches(REGEX_MATRICULE)) {
+        	if(tab2[0].matches(REGEX_MATRICULE_MANAGER)) {
         		this.matsManager.add(tab2[0]);
         	}
         	
         }
+
+        System.out.println("\n----------------------------------------------");
+        System.out.println("LISTE DES EMPLOYES QUI VONT ETRE ENREGISTRES :");
+        printEmployes();
+        System.out.println("----------------------------------------------\n");
         return employes;
     }
 
@@ -100,7 +109,7 @@ public class MyRunner implements CommandLineRunner {
     	
     	// Vérifie si la ligne est incomplète
     	if (tab.length < 5) {
-    		throw new BatchException("La ligne ne comporte pas assez d'éléments : " + tab.length);
+    		throw new BatchException("La ligne ne comporte pas assez d'éléments : " + tab.length + " ");
     	}
     	
     	// Déclare le format de date attendu
@@ -109,7 +118,7 @@ public class MyRunner implements CommandLineRunner {
     	
     	// Vérifie si la première lettre du matricule est correcte
     	if(!ligne.matches("^[MCT]{1}.*")) {
-    		throw new BatchException("Type d'employé inconnu :" + ligne.charAt(0) + " ");
+    		throw new BatchException("Type d'employé inconnu : " + ligne.charAt(0) + " ");
     	}
     	
     	// Vérifie si le format du matricule est correct
@@ -179,12 +188,12 @@ public class MyRunner implements CommandLineRunner {
     	}
     	
     	// Vérifie si le matricule du manager d'un technicien est valide
-    	if(ligne.matches("^[T]{1}.*") && !tab[6].matches(REGEX_MATRICULE)) {
+    	if(ligne.matches("^[T]{1}.*") && !tab[6].matches(REGEX_MATRICULE_MANAGER)) {
     		throw new BatchException("la chaîne " + tab[6] + " ne respecte pas l'expression régulière ^M[0-9]{5}$ ");
     	}
     	
     	// Vérifie si le matricule du manager du technicien est déjà présent en base ou dans le CSV
-    	if(ligne.matches("^[T]{1}.*") && tab[6].matches(REGEX_MATRICULE)) {
+    	if(ligne.matches("^[T]{1}.*") && tab[6].matches(REGEX_MATRICULE_MANAGER)) {
     		String mat = tab[6];
     		Employe t = employeRepository.findByMatricule(mat);
     		
@@ -219,6 +228,27 @@ public class MyRunner implements CommandLineRunner {
      */
     private void processCommercial(String ligneCommercial) throws BatchException {
         //TODO
+    	String[] tabC = ligneCommercial.split(",");
+    	Commercial c = new Commercial();
+    	
+    	c.setNom(tabC[1]);
+    	c.setPrenom(tabC[2]);
+    	c.setMatricule(tabC[0]);
+    	
+    	SimpleDateFormat formatDate = new SimpleDateFormat("dd/MM/yyyy");
+    	formatDate.setLenient(false);
+    	try {
+    		LocalDate d = new LocalDate(formatDate.parse(tabC[3]));
+    		c.setDateEmbauche(d);
+    	} catch (Exception e) {
+    		throw new BatchException(tabC[3] + " ne respecte pas le format de date dd/MM/yyyy ");
+		}
+    	
+    	c.setSalaire(Double.parseDouble(tabC[4]));
+    	c.setCaAnnuel(Double.parseDouble(tabC[5]));
+    	c.setPerformance(Integer.parseInt(tabC[6]));
+    	
+    	this.employes.add(c);
     }
 
     /**
@@ -227,7 +257,26 @@ public class MyRunner implements CommandLineRunner {
      * @throws BatchException s'il y a un problème sur cette ligne
      */
     private void processManager(String ligneManager) throws BatchException {
-        //TODO
+    	String[] tabM = ligneManager.split(",");
+    	Manager m = new Manager();
+    	
+    	m.setNom(tabM[1]);
+    	m.setPrenom(tabM[2]);
+    	m.setMatricule(tabM[0]);
+    	
+    	SimpleDateFormat formatDate = new SimpleDateFormat("dd/MM/yyyy");
+    	formatDate.setLenient(false);
+    	try {
+    		LocalDate d = new LocalDate(formatDate.parse(tabM[3]));
+    		m.setDateEmbauche(d);
+    	} catch (Exception e) {
+    		throw new BatchException(tabM[3] + " ne respecte pas le format de date dd/MM/yyyy ");
+		}
+    	
+    	m.setSalaire(Double.parseDouble(tabM[4]));
+    	m.setEquipe(null);
+    	
+    	this.employes.add(m);
     }
 
     /**
@@ -236,7 +285,36 @@ public class MyRunner implements CommandLineRunner {
      * @throws BatchException s'il y a un problème sur cette ligne
      */
     private void processTechnicien(String ligneTechnicien) throws BatchException {
-        //TODO
+    	String[] tabT = ligneTechnicien.split(",");
+    	Technicien t = new Technicien();
+    	
+    	t.setNom(tabT[1]);
+    	t.setPrenom(tabT[2]);
+    	t.setMatricule(tabT[0]);
+    	
+    	SimpleDateFormat formatDate = new SimpleDateFormat("dd/MM/yyyy");
+    	formatDate.setLenient(false);
+    	try {
+    		LocalDate d = new LocalDate(formatDate.parse(tabT[3]));
+    		t.setDateEmbauche(d);
+    	} catch (Exception e) {
+    		throw new BatchException(tabT[3] + " ne respecte pas le format de date dd/MM/yyyy ");
+		}
+    	
+    	try {
+			t.setGrade(Integer.parseInt(tabT[5]));	
+		} catch (NumberFormatException | TechnicienException e) {
+			throw new BatchException("Le grade du technicien est incorrect : " + tabT[5] + " ");
+		}
+    	
+    	t.setSalaire(Double.parseDouble(tabT[4]));
+    	
+    	this.employes.add(t);
+    }
+    
+    // Méthode pour afficher la liste des employés validés
+    private void printEmployes() {
+    	System.out.println(employes.toString());
     }
 
 }
